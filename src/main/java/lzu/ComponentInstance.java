@@ -1,16 +1,20 @@
 package lzu;
 
+import java.lang.reflect.Method;
+
 public class ComponentInstance {
     private int ID;
     private String name;
     private ComponentState state;
     private Class<?> startClass;
+    private ComponentThread componentThread;
 
-    public ComponentInstance(int ID, String name, Class<?> startClass) {
+    public ComponentInstance(int ID, String name, Class<?> startClass, Method startMethod, Method stopMethod, Object startMethodInstance, Object stopMethodInstance) {
         this.ID = ID;
         this.name = name;
         this.startClass = startClass;
         this.state = ComponentState.INITIALIZED;
+        this.componentThread = new ComponentThread(this, startMethod, stopMethod, startMethodInstance, stopMethodInstance);
     }
 
     public int getID() {
@@ -43,6 +47,14 @@ public class ComponentInstance {
 
     public void setStartClass(Class<?> startClass) {
         this.startClass = startClass;
+    }
+
+    public ComponentThread getComponentThread() {
+        return componentThread;
+    }
+
+    public void setComponentThread(ComponentThread componentThread) {
+        this.componentThread = componentThread;
     }
 }
 
