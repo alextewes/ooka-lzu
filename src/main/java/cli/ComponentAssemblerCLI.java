@@ -13,11 +13,12 @@ import java.util.concurrent.Callable;
 public class ComponentAssemblerCLI {
     private static ComponentLoader componentLoader = new ComponentLoader();
 
-    @Command(name = "", description = "Dummy command class.", subcommands = CommandLine.HelpCommand.class)
-    static class DummyCommand implements Callable<Integer> {
+    @Command(name = "", description = "JVM Runtime Environment", subcommands = CommandLine.HelpCommand.class)
+    static class startRTE implements Callable<Integer> {
         @Override
+
         public Integer call() {
-            // Do nothing
+            componentLoader.startRuntime();
             return 0;
         }
     }
@@ -93,12 +94,31 @@ public class ComponentAssemblerCLI {
         }
     }
 
+    @Command(name= "remove", description = "Remove a component by ID.")
+    static class RemoveCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The ID of the component to remove.")
+        private int componentId;
+
+        @Override
+        public Integer call() {
+            try {
+                componentLoader.removeComponentById(componentId);
+                System.out.println("Component removed: " + componentId);
+            } catch (Exception e) {
+                System.err.println("Error removing component: " + e.getMessage());
+                return 1;
+            }
+            return 0;
+        }
+    }
+
     public static void main(String[] args) {
-        CommandLine cmd = new CommandLine(new DummyCommand())
+        CommandLine cmd = new CommandLine(new startRTE())
                 .addSubcommand("deploy", new DeployCommand())
                 .addSubcommand("start", new StartCommand())
                 .addSubcommand("stop", new StopCommand())
-                .addSubcommand("status", new StatusCommand());
+                .addSubcommand("status", new StatusCommand())
+                .addSubcommand("remove", new RemoveCommand());
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("Welcome to the Component Assembler CLI!");
