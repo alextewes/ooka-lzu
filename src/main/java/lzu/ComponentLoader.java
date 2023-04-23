@@ -28,11 +28,10 @@ public class ComponentLoader {
     }
 
     public void startRuntime() {
-        System.out.println("Laufzeitumgebung gestartet.");
     }
 
     public void stopRuntime() {
-        System.out.println("Laufzeitumgebung gestoppt.");
+        stopAllComponents();
     }
 
     public List<Class<?>> deployComponent(Path jarFilePath, String name) {
@@ -140,7 +139,6 @@ public class ComponentLoader {
         if (componentInstance != null) {
             if (componentInstance.getState() == ComponentState.STOPPED || componentInstance.getState() == ComponentState.INITIALIZED) {
                 components.remove(componentID);
-                System.out.println("Component removed: " + componentID);
             } else {
                 System.out.println("Component is not stopped. Please stop the component before removing it.");
             }

@@ -4,10 +4,13 @@ import lzu.ComponentLoader;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 public class ComponentAssemblerCLI {
@@ -19,6 +22,7 @@ public class ComponentAssemblerCLI {
 
         public Integer call() {
             componentLoader.startRuntime();
+            System.out.println("Runtime started");
             return 0;
         }
     }
@@ -35,7 +39,7 @@ public class ComponentAssemblerCLI {
         public Integer call() {
             try {
                 componentLoader.deployComponent(componentJarPath, componentName);
-                System.out.println("Component deployed: " + componentName);
+                System.out.println("Component deployed with name: " + componentName);
             } catch (Exception e) {
                 System.err.println("Error deploying component: " + e.getMessage());
                 return 1;
@@ -53,7 +57,7 @@ public class ComponentAssemblerCLI {
         public Integer call() {
             try {
                 componentLoader.startComponentById(componentId);
-                System.out.println("Component started: " + componentId);
+                System.out.println("Component started with ID: " + componentId);
             } catch (Exception e) {
                 System.err.println("Error starting component: " + e.getMessage());
                 return 1;
@@ -71,7 +75,7 @@ public class ComponentAssemblerCLI {
         public Integer call() {
             try {
                 componentLoader.stopComponentById(componentId);
-                System.out.println("Component stopped: " + componentId);
+                System.out.println("Component stopped with ID: " + componentId);
             } catch (Exception e) {
                 System.err.println("Error stopping component: " + e.getMessage());
                 return 1;
@@ -85,7 +89,15 @@ public class ComponentAssemblerCLI {
         @Override
         public Integer call() {
             try {
-                componentLoader.getAllComponentStatuses().forEach(System.out::println);
+                List<Map<String, Object>> statuses = componentLoader.getAllComponentStatuses();
+                if (statuses.isEmpty()) {
+                    System.out.println("No components deployed.");
+                } else {
+                    System.out.println("Component statuses:");
+                    for (Map<String, Object> status : statuses) {
+                        System.out.println(status);
+                    }
+                }
             } catch (Exception e) {
                 System.err.println("Error retrieving component statuses: " + e.getMessage());
                 return 1;
@@ -94,7 +106,7 @@ public class ComponentAssemblerCLI {
         }
     }
 
-    @Command(name= "remove", description = "Remove a component by ID.")
+    @Command(name = "remove", description = "Remove a component by ID.")
     static class RemoveCommand implements Callable<Integer> {
         @Parameters(index = "0", description = "The ID of the component to remove.")
         private int componentId;
@@ -103,7 +115,7 @@ public class ComponentAssemblerCLI {
         public Integer call() {
             try {
                 componentLoader.removeComponentById(componentId);
-                System.out.println("Component removed: " + componentId);
+                System.out.println("Component removed with ID: " + componentId);
             } catch (Exception e) {
                 System.err.println("Error removing component: " + e.getMessage());
                 return 1;
@@ -134,6 +146,7 @@ public class ComponentAssemblerCLI {
                 continue;
             }
             if (line == null || line.trim().equalsIgnoreCase("exit")) {
+                componentLoader.stopRuntime();
                 break;
             }
 
