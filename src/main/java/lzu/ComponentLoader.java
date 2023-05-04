@@ -3,8 +3,12 @@ package lzu;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,6 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import custom.annotation.component.Component;
 
 public class ComponentLoader {
@@ -158,5 +164,44 @@ public class ComponentLoader {
         }
         return componentStatusList;
     }
+
+    public void saveState(String apiUrl) {
+        try {
+            ComponentLoaderState state = new ComponentLoaderState(new ArrayList<>(components.values()));
+            ObjectMapper objectMapper = new ObjectMapper();
+            String jsonState = objectMapper.writeValueAsString(state);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl))
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonState))
+                    .header("Content-Type", "application/json")
+                    .build();
+            HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (InterruptedException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void loadState(String apiUrl) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+            String jsonState = response.body();
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            ComponentLoaderState state = objectMapper.readValue(jsonState, ComponentLoaderState.class);
+
+            components.clear();
+            for (ComponentInstance componentInstance : state.getComponentInstances()) {
+                components.put(componentInstance.getID(), componentInstance);
+            }
+        } catch (InterruptedException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
 }
