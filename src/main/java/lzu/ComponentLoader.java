@@ -16,12 +16,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import custom.annotation.component.Component;
 import logger.ConsoleLogger;
 import logger.Inject;
 import logger.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class ComponentLoader {
     private Method startMethod;
@@ -67,7 +67,7 @@ public class ComponentLoader {
             if (startingClass != null) {
                 int componentID = componentIDCounter.incrementAndGet();
                 injectLogger(startMethodInstance);
-                ComponentInstance componentInstance = new ComponentInstance(componentID, name, startingClass, startMethod, stopMethod, startMethodInstance, stopMethodInstance);
+                ComponentInstance componentInstance = new ComponentInstance(componentID, name, startingClass, startMethod, stopMethod, startMethodInstance, stopMethodInstance, jarFilePath);
                 components.put(componentID, componentInstance);
             } else {
                 System.out.println("Starting class not found in the JAR file.");
@@ -187,9 +187,21 @@ public class ComponentLoader {
 
     public void saveState(String apiUrl) {
         try {
-            ComponentLoaderState state = new ComponentLoaderState(new ArrayList<>(components.values()));
-            ObjectMapper objectMapper = new ObjectMapper();
-            String jsonState = objectMapper.writeValueAsString(state);
+            JSONArray componentInstancesArray = new JSONArray();
+
+            for (ComponentInstance componentInstance : components.values()) {
+                JSONObject componentInstanceObject = new JSONObject();
+                componentInstanceObject.put("ID", componentInstance.getID());
+                componentInstanceObject.put("name", componentInstance.getName());
+                componentInstanceObject.put("state", componentInstance.getState());
+                componentInstanceObject.put("jarFilePath", componentInstance.getJarFilePath());
+                componentInstancesArray.put(componentInstanceObject);
+            }
+
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("componentInstances", componentInstancesArray);
+
+            String jsonState = jsonObject.toString();
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(apiUrl))
@@ -211,12 +223,17 @@ public class ComponentLoader {
             HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
             String jsonState = response.body();
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            ComponentLoaderState state = objectMapper.readValue(jsonState, ComponentLoaderState.class);
+            JSONObject jsonObject = new JSONObject(jsonState);
+            JSONArray componentInstancesArray = jsonObject.getJSONArray("componentInstances");
 
             components.clear();
-            for (ComponentInstance componentInstance : state.getComponentInstances()) {
-                components.put(componentInstance.getID(), componentInstance);
+
+            for (int i = 0; i < componentInstancesArray.length(); i++) {
+                JSONObject componentInstanceObject = componentInstancesArray.getJSONObject(i);
+                String name = componentInstanceObject.getString("name");
+                Path jarFilePath = Path.of(componentInstanceObject.getString("jarFilePath"));
+
+                deployComponent(jarFilePath, name);
             }
         } catch (InterruptedException | IOException e) {
             e.printStackTrace();
