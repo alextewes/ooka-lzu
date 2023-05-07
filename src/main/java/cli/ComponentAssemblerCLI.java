@@ -124,13 +124,51 @@ public class ComponentAssemblerCLI {
         }
     }
 
+    @Command(name = "save-state", description = "Save the current state to a remote API.")
+    static class SaveStateCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The remote API URL.")
+        private String apiUrl;
+
+        @Override
+        public Integer call() {
+            try {
+                componentLoader.saveState(apiUrl);
+                System.out.println("State saved to: " + apiUrl);
+            } catch (Exception e) {
+                System.err.println("Error saving state: " + e.getMessage());
+                return 1;
+            }
+            return 0;
+        }
+    }
+
+    @Command(name = "load-state", description = "Load the state from a remote API.")
+    static class LoadStateCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The remote API URL.")
+        private String apiUrl;
+
+        @Override
+        public Integer call() {
+            try {
+                componentLoader.loadState(apiUrl);
+                System.out.println("State loaded from: " + apiUrl);
+            } catch (Exception e) {
+                System.err.println("Error loading state: " + e.getMessage());
+                return 1;
+            }
+            return 0;
+        }
+    }
+
     public static void main(String[] args) {
         CommandLine cmd = new CommandLine(new startRTE())
                 .addSubcommand("deploy", new DeployCommand())
                 .addSubcommand("start", new StartCommand())
                 .addSubcommand("stop", new StopCommand())
                 .addSubcommand("status", new StatusCommand())
-                .addSubcommand("remove", new RemoveCommand());
+                .addSubcommand("remove", new RemoveCommand())
+                .addSubcommand("save-state", new SaveStateCommand())
+                .addSubcommand("load-state", new LoadStateCommand());;
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("Welcome to the Component Assembler CLI!");
