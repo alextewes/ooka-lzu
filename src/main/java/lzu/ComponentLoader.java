@@ -1,6 +1,7 @@
 package lzu;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -16,9 +17,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import custom.annotation.component.Component;
+import logger.ConsoleLogger;
+import logger.Inject;
+import logger.Logger;
 
 public class ComponentLoader {
     private Method startMethod;
@@ -63,6 +66,7 @@ public class ComponentLoader {
 
             if (startingClass != null) {
                 int componentID = componentIDCounter.incrementAndGet();
+                injectLogger(startMethodInstance);
                 ComponentInstance componentInstance = new ComponentInstance(componentID, name, startingClass, startMethod, stopMethod, startMethodInstance, stopMethodInstance);
                 components.put(componentID, componentInstance);
             } else {
@@ -73,6 +77,7 @@ public class ComponentLoader {
         }
         return loadedClasses;
     }
+
 
 
     private void findAnnotatedMethods(Class<?> clazz) {
@@ -96,6 +101,21 @@ public class ComponentLoader {
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
                  NoSuchMethodException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void injectLogger(Object componentInstance) {
+        Field[] fields = componentInstance.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Inject.class) && field.getType().equals(Logger.class)) {
+                field.setAccessible(true);
+                try {
+                    Logger logger = new ConsoleLogger();
+                    field.set(componentInstance, logger);
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
