@@ -1,9 +1,13 @@
 package org.example;
 
+import logger.Logger;
+import logger.LoggerFactory;
+
 public class Foo {
 
     public void sayBye() {
-        System.out.println("ComponentA: Bye from org.example.Foo!");
+        Logger logger = LoggerFactory.createLogger();
+        logger.sendLog("ComponentA: Stopped org.example.Foo!");
     }
 
 }

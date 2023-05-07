@@ -1,7 +1,11 @@
 package org.example;
 
+import logger.Logger;
+import logger.LoggerFactory;
+
 public class Bar {
     public void sayHello() {
-        System.out.println("ComponentA: Hello from org.example.Bar!");
+        Logger logger = LoggerFactory.createLogger();
+        logger.sendLog("ComponentA: Started org.example.Bar!");
     }
 }
