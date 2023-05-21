@@ -20,6 +20,7 @@ import custom.annotation.component.Component;
 import logger.ConsoleLogger;
 import logger.Inject;
 import logger.Logger;
+import logger.LoggerFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -110,7 +111,7 @@ public class ComponentLoader {
             if (field.isAnnotationPresent(Inject.class) && field.getType().equals(Logger.class)) {
                 field.setAccessible(true);
                 try {
-                    Logger logger = new ConsoleLogger();
+                    Logger logger = LoggerFactory.createLogger();
                     field.set(componentInstance, logger);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
