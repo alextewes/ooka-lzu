@@ -7,7 +7,7 @@ app.use(bodyParser.json());
 
 const dataFilePath = './component_state.json';
 
-app.post('/api/save-config', (req, res) => {
+app.post('/component-state', (req, res) => {
     fs.writeFile(dataFilePath, JSON.stringify(req.body, null, 2), (err) => {
         if (err) {
             console.error(err);
@@ -18,7 +18,7 @@ app.post('/api/save-config', (req, res) => {
     });
 });
 
-app.get('/api/load-config', (req, res) => {
+app.get('/component-state', (req, res) => {
     fs.readFile(dataFilePath, 'utf-8', (err, data) => {
         if (err) {
             console.error(err);
