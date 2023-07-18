@@ -132,7 +132,7 @@ public class ComponentAssemblerCLI {
         @Override
         public Integer call() {
             try {
-                componentLoader.saveState(apiUrl);
+                componentLoader.saveState();
                 System.out.println("State saved to: " + apiUrl);
             } catch (Exception e) {
                 System.err.println("Error saving state: " + e.getMessage());
@@ -150,7 +150,7 @@ public class ComponentAssemblerCLI {
         @Override
         public Integer call() {
             try {
-                componentLoader.loadState(apiUrl);
+                componentLoader.loadState();
                 System.out.println("State loaded from: " + apiUrl);
             } catch (Exception e) {
                 System.err.println("Error loading state: " + e.getMessage());
@@ -168,7 +168,7 @@ public class ComponentAssemblerCLI {
                 .addSubcommand("status", new StatusCommand())
                 .addSubcommand("remove", new RemoveCommand())
                 .addSubcommand("save-state", new SaveStateCommand())
-                .addSubcommand("load-state", new LoadStateCommand());;
+                .addSubcommand("load-state", new LoadStateCommand());
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("Welcome to the Component Assembler CLI!");

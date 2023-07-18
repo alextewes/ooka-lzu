@@ -4,20 +4,18 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+
 import custom.annotation.component.Component;
-import logger.ConsoleLogger;
 import logger.Inject;
 import logger.Logger;
 import logger.LoggerFactory;
@@ -80,7 +78,6 @@ public class ComponentLoader {
     }
 
 
-
     private void findAnnotatedMethods(Class<?> clazz) {
         try {
             startMethod = null;
@@ -135,7 +132,9 @@ public class ComponentLoader {
     public void startComponentById(int componentID) {
         ComponentInstance componentInstance = components.get(componentID);
         if (componentInstance != null) {
-            componentInstance.getComponentThread().start();
+            ComponentThread newThread = new ComponentThread(componentInstance, startMethod, stopMethod, startMethodInstance, stopMethodInstance);
+            componentInstance.setComponentThread(newThread);
+            newThread.start();
         } else {
             System.out.println("Component not found: " + componentID);
         }
@@ -167,7 +166,8 @@ public class ComponentLoader {
             if (componentInstance.getState() == ComponentState.STOPPED || componentInstance.getState() == ComponentState.INITIALIZED) {
                 components.remove(componentID);
             } else {
-                System.out.println("Component is not stopped. Please stop the component before removing it.");
+                this.stopComponentById(componentID);
+                components.remove(componentID);
             }
         } else {
             System.out.println("Component not found: " + componentID);
@@ -186,8 +186,9 @@ public class ComponentLoader {
         return componentStatusList;
     }
 
-    public void saveState(String apiUrl) {
+    public void saveState() {
         try {
+            String filePath = "state.json";
             JSONArray componentInstancesArray = new JSONArray();
 
             for (ComponentInstance componentInstance : components.values()) {
@@ -204,29 +205,23 @@ public class ComponentLoader {
 
             String jsonState = jsonObject.toString();
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl))
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonState))
-                    .header("Content-Type", "application/json")
-                    .build();
-            HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (InterruptedException | IOException e) {
+            Path file = Paths.get(filePath);
+            Files.write(file, jsonState.getBytes());
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void loadState(String apiUrl) {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl))
-                    .GET()
-                    .build();
-            HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-            String jsonState = response.body();
 
+    public void loadState() {
+        try {
+            String filePath = "state.json";
+            Path file = Paths.get(filePath);
+
+            String jsonState = Files.readString(file);
             JSONObject jsonObject = new JSONObject(jsonState);
             JSONArray componentInstancesArray = jsonObject.getJSONArray("componentInstances");
-
             components.clear();
 
             for (int i = 0; i < componentInstancesArray.length(); i++) {
@@ -236,10 +231,9 @@ public class ComponentLoader {
 
                 deployComponent(jarFilePath, name);
             }
-        } catch (InterruptedException | IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
 
 }
