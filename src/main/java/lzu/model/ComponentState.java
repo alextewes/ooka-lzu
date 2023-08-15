@@ -1,4 +1,4 @@
-package lzu;
+package lzu.model;
 
 public enum ComponentState {
     INITIALIZED,

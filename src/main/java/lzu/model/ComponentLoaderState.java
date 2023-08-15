@@ -1,4 +1,4 @@
-package lzu;
+package lzu.model;
 
 import java.util.List;
 

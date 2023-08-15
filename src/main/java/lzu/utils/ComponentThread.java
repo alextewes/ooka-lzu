@@ -1,4 +1,7 @@
-package lzu;
+package lzu.utils;
+
+import lzu.model.ComponentInstance;
+import lzu.model.ComponentState;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
