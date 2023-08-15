@@ -1,4 +1,4 @@
-package lzu;
+package lzu.service;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -11,7 +11,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -19,20 +18,29 @@ import custom.annotation.component.Component;
 import logger.Inject;
 import logger.Logger;
 import logger.LoggerFactory;
+import lzu.model.ComponentState;
+import lzu.utils.ComponentThread;
+import lzu.model.ComponentInstance;
+import lzu.utils.UniqueIdGenerator;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class ComponentLoader {
+
     private Method startMethod;
     private Method stopMethod;
     private Object startMethodInstance;
     private Object stopMethodInstance;
-    private Map<Integer, ComponentInstance> components;
-    private AtomicInteger componentIDCounter;
+    private Map<String, ComponentInstance> components;
+    private String prefix;
 
     public ComponentLoader() {
+
+    }
+
+    public ComponentLoader(String prefix) {
         components = new ConcurrentHashMap<>();
-        componentIDCounter = new AtomicInteger(0);
+        this.prefix = prefix;
     }
 
     public void startRuntime() {
@@ -43,6 +51,8 @@ public class ComponentLoader {
     }
 
     public List<Class<?>> deployComponent(Path jarFilePath, String name) {
+        int id = UniqueIdGenerator.generateNewId();
+        String uniqueId = prefix + "-" + id;
         List<Class<?>> loadedClasses = new ArrayList<>();
         try (URLClassLoader classLoader = new URLClassLoader(new URL[]{jarFilePath.toUri().toURL()})) {
             JarFile jarFile = new JarFile(jarFilePath.toFile());
@@ -64,10 +74,9 @@ public class ComponentLoader {
             }
 
             if (startingClass != null) {
-                int componentID = componentIDCounter.incrementAndGet();
                 injectLogger(startMethodInstance);
-                ComponentInstance componentInstance = new ComponentInstance(componentID, name, startingClass, startMethod, stopMethod, startMethodInstance, stopMethodInstance, jarFilePath);
-                components.put(componentID, componentInstance);
+                ComponentInstance componentInstance = new ComponentInstance(uniqueId, name, startingClass, startMethod, stopMethod, startMethodInstance, stopMethodInstance, jarFilePath);
+                components.put(uniqueId, componentInstance);
             } else {
                 System.out.println("Starting class not found in the JAR file.");
             }
@@ -118,18 +127,18 @@ public class ComponentLoader {
     }
 
     public void startAllComponents() {
-        for (int componentID : components.keySet()) {
+        for (String componentID : components.keySet()) {
             startComponentById(componentID);
         }
     }
 
     public void stopAllComponents() {
-        for (int componentID : components.keySet()) {
+        for (String componentID : components.keySet()) {
             stopComponentById(componentID);
         }
     }
 
-    public void startComponentById(int componentID) {
+    public void startComponentById(String componentID) {
         ComponentInstance componentInstance = components.get(componentID);
         if (componentInstance != null) {
             ComponentThread newThread = new ComponentThread(componentInstance, startMethod, stopMethod, startMethodInstance, stopMethodInstance);
@@ -137,11 +146,12 @@ public class ComponentLoader {
             newThread.start();
         } else {
             System.out.println("Component not found: " + componentID);
+            System.out.println("Available components: " + components);
         }
     }
 
 
-    public void stopComponentById(int componentID) {
+    public void stopComponentById(String componentID) {
         ComponentInstance componentInstance = components.get(componentID);
         if (componentInstance != null) {
             findAnnotatedMethods(componentInstance.getStartClass());
@@ -160,7 +170,7 @@ public class ComponentLoader {
         }
     }
 
-    public void removeComponentById(int componentID) {
+    public void removeComponentById(String componentID) {
         ComponentInstance componentInstance = components.get(componentID);
         if (componentInstance != null) {
             if (componentInstance.getState() == ComponentState.STOPPED || componentInstance.getState() == ComponentState.INITIALIZED) {
@@ -186,32 +196,21 @@ public class ComponentLoader {
         return componentStatusList;
     }
 
-    public void saveState() {
-        try {
-            String filePath = "state.json";
-            JSONArray componentInstancesArray = new JSONArray();
+    public JSONArray saveState() {
+        JSONArray componentInstancesArray = new JSONArray();
 
-            for (ComponentInstance componentInstance : components.values()) {
-                JSONObject componentInstanceObject = new JSONObject();
-                componentInstanceObject.put("ID", componentInstance.getID());
-                componentInstanceObject.put("name", componentInstance.getName());
-                componentInstanceObject.put("state", componentInstance.getState());
-                componentInstanceObject.put("jarFilePath", componentInstance.getJarFilePath());
-                componentInstancesArray.put(componentInstanceObject);
-            }
-
-            JSONObject jsonObject = new JSONObject();
-            jsonObject.put("componentInstances", componentInstancesArray);
-
-            String jsonState = jsonObject.toString();
-
-            Path file = Paths.get(filePath);
-            Files.write(file, jsonState.getBytes());
-
-        } catch (IOException e) {
-            e.printStackTrace();
+        for (ComponentInstance componentInstance : components.values()) {
+            JSONObject componentInstanceObject = new JSONObject();
+            componentInstanceObject.put("ID", componentInstance.getID());
+            componentInstanceObject.put("name", componentInstance.getName());
+            componentInstanceObject.put("state", componentInstance.getState());
+            componentInstanceObject.put("jarFilePath", componentInstance.getJarFilePath());
+            componentInstancesArray.put(componentInstanceObject);
         }
+
+        return componentInstancesArray;
     }
+
 
 
     public void loadState() {
@@ -234,6 +233,10 @@ public class ComponentLoader {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean hasComponent(String componentId) {
+        return components.containsKey(componentId);
     }
 
 }
