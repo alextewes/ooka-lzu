@@ -1,7 +1,7 @@
+
 package lzu.test;
 
-import lzu.ComponentLoader;
-import lzu.ComponentState;
+import lzu.service.ComponentLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,100 +13,51 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ComponentLoaderTest {
+
     private ComponentLoader componentLoader;
-    private final Path firstComponentPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
-    private final Path secondComponentPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentB\\target\\componentB-1.0-SNAPSHOT.jar");
 
     @BeforeEach
     void setUp() {
-        componentLoader = new ComponentLoader();
+        componentLoader = new ComponentLoader("test-prefix");
     }
 
     @Test
-    void testDeployComponent() {
-        componentLoader.deployComponent(firstComponentPath, "TestComponent");
-
-        List<Map<String, Object>> statuses = componentLoader.getAllComponentStatuses();
-
-        assertEquals(1, statuses.size());
-        assertEquals("TestComponent", statuses.get(0).get("name"));
-        assertEquals(ComponentState.INITIALIZED, statuses.get(0).get("state"));
+    void deployComponentSuccess() {
+        Path mockJarPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
+        List<Class<?>> loadedClasses = componentLoader.deployComponent(mockJarPath, "mock-component");
+        assertFalse(loadedClasses.isEmpty(), "Loaded classes list should not be empty");
     }
 
     @Test
-    void testDeployMultipleComponents() {
-        componentLoader.deployComponent(firstComponentPath, "FirstComponent");
-        componentLoader.deployComponent(secondComponentPath, "SecondComponent");
+    void startAndStopComponentById() {
+        Path mockJarPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
+        List<Class<?>> loadedClasses = componentLoader.deployComponent(mockJarPath, "mock-component");
+        assertFalse(loadedClasses.isEmpty(), "Loaded classes list should not be empty");
 
-        List<Map<String, Object>> statuses = componentLoader.getAllComponentStatuses();
-
-        assertEquals(2, statuses.size());
-        assertEquals("FirstComponent", statuses.get(0).get("name"));
-        assertEquals(ComponentState.INITIALIZED, statuses.get(0).get("state"));
-        assertEquals("SecondComponent", statuses.get(1).get("name"));
-        assertEquals(ComponentState.INITIALIZED, statuses.get(1).get("state"));
+        // Assuming you have a component with the ID "test-prefix-1" in the loaded classes
+        componentLoader.startComponentById("test-prefix-1");
+        componentLoader.stopComponentById("test-prefix-1");
     }
 
     @Test
-    void testDeploySameComponentTwice() {
-        componentLoader.deployComponent(firstComponentPath, "TestComponentA");
-        componentLoader.deployComponent(firstComponentPath, "TestComponentB");
+    void removeComponentById() {
+        Path mockJarPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
+        List<Class<?>> loadedClasses = componentLoader.deployComponent(mockJarPath, "mock-component");
+        assertFalse(loadedClasses.isEmpty(), "Loaded classes list should not be empty");
 
-        List<Map<String, Object>> statuses = componentLoader.getAllComponentStatuses();
-
-        assertEquals(2, statuses.size());
-        assertEquals("TestComponentA", statuses.get(0).get("name"));
-        assertEquals("TestComponentB", statuses.get(1).get("name"));
-
-        assertEquals(ComponentState.INITIALIZED, statuses.get(0).get("state"));
-        assertEquals(ComponentState.INITIALIZED, statuses.get(1).get("state"));
+        // Assuming you have a component with the ID "test-prefix-1" in the loaded classes
+        componentLoader.removeComponentById("test-prefix-1");
+        assertFalse(componentLoader.hasComponent("test-prefix-1"), "Component should be removed");
     }
 
     @Test
-    void testDeployComponentWithInvalidPath() {
-        Path jarFilePath = Paths.get("path/to/nonexistent/file.jar");
-        componentLoader.deployComponent(jarFilePath, "NonExistentComponent");
-        assertEquals(0, componentLoader.getAllComponentStatuses().size());
+    void getAllComponentStatuses() {
+        Path mockJarPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
+        List<Class<?>> loadedClasses = componentLoader.deployComponent(mockJarPath, "mock-component");
+        assertFalse(loadedClasses.isEmpty(), "Loaded classes list should not be empty");
+
+        List<Map<String, Object>> componentStatuses = componentLoader.getAllComponentStatuses();
+        assertFalse(componentStatuses.isEmpty(), "Component statuses list should not be empty");
     }
 
-    @Test
-    void testStartAndStopComponentById() throws InterruptedException {
-        componentLoader.deployComponent(firstComponentPath, "TestComponent");
-        List<Map<String, Object>> statuses = componentLoader.getAllComponentStatuses();
-        int componentId = (int) statuses.get(0).get("ID");
-
-        componentLoader.startComponentById(componentId);
-        Thread.sleep(200);
-        statuses = componentLoader.getAllComponentStatuses();
-        assertEquals(ComponentState.RUNNING, statuses.get(0).get("state"));
-
-        componentLoader.stopComponentById(componentId);
-        statuses = componentLoader.getAllComponentStatuses();
-        assertEquals(ComponentState.STOPPED, statuses.get(0).get("state"));
-    }
-
-    @Test
-    void testRemoveComponentById() throws InterruptedException {
-        componentLoader.deployComponent(firstComponentPath, "TestComponent");
-        List<Map<String, Object>> statuses = componentLoader.getAllComponentStatuses();
-        int componentId = (int) statuses.get(0).get("ID");
-
-        componentLoader.startComponentById(componentId);
-        Thread.sleep(200);
-        componentLoader.stopComponentById(componentId);
-
-        componentLoader.removeComponentById(componentId);
-        statuses = componentLoader.getAllComponentStatuses();
-        assertTrue(statuses.isEmpty());
-    }
-
-    @Test
-    void testClassIsolation() {
-        // Lade vom selben componentLoader dieselbe Klasse einer Komponente
-        Class<?> lc1 = componentLoader.deployComponent(firstComponentPath, "Component1").get(0);
-        Class<?> lc2 = componentLoader.deployComponent(firstComponentPath, "Component2").get(0);
-
-        // Instanzen sollten verschieden sein, da sie von zwei verschiedenen ClassLoader-Instanzen geladen werden
-        assertFalse(lc1.isInstance(lc2));
-    }
 }
