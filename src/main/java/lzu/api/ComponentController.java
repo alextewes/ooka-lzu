@@ -4,6 +4,7 @@ import lzu.service.ComponentLoader;
 import lzu.utils.StateLoaderUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,8 @@ import java.util.Map;
 @RequestMapping("/api/components")
 public class ComponentController {
 
-    private static final LoadBalancer loadBalancer = new LoadBalancer(3); // for example, 3 instances
+    @Autowired
+    private LoadBalancer loadBalancer;
 
     private ComponentLoader getLoader() {
         return loadBalancer.getNextLoader();
@@ -38,10 +40,28 @@ public class ComponentController {
 
     @PostMapping("/start-runtime")
     public ResponseEntity<String> startRuntime() {
-        for (ComponentLoader loader : loadBalancer.getAllLoaders()) {
-            loader.startRuntime();
+        try {
+            List<ComponentLoader> loaders = loadBalancer.getAllLoaders();
+            for (ComponentLoader loader : loaders) {
+                loader.startRuntime();
+            }
+            return new ResponseEntity<>("Runtime started successfully", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Error starting runtime: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        return new ResponseEntity<>("All runtimes started", HttpStatus.OK);
+    }
+
+    @PostMapping("/stop-runtime")
+    public ResponseEntity<String> stopRuntime() {
+        try {
+            List<ComponentLoader> loaders = loadBalancer.getAllLoaders();
+            for (ComponentLoader loader : loaders) {
+                loader.stopRuntime();
+            }
+            return new ResponseEntity<>("Runtime stopped successfully", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Error stopping runtime: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @PostMapping("/deploy")
@@ -59,7 +79,6 @@ public class ComponentController {
     @PostMapping("/start")
     public ResponseEntity<Map<String, String>> startComponent(@RequestBody Map<String, String> payload) {
         String componentId = payload.get("componentId");
-        System.out.println("Starting component with ID: " + componentId);
         Map<String, String> response = new HashMap<>();
         ComponentLoader loader = findLoaderByComponentId(componentId);
         if (loader != null) {
@@ -183,9 +202,6 @@ public class ComponentController {
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
-
-
 }
 
 
