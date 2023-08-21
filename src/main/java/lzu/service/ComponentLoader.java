@@ -6,9 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
@@ -211,29 +209,6 @@ public class ComponentLoader {
         return componentInstancesArray;
     }
 
-
-
-    public void loadState() {
-        try {
-            String filePath = "state.json";
-            Path file = Paths.get(filePath);
-
-            String jsonState = Files.readString(file);
-            JSONObject jsonObject = new JSONObject(jsonState);
-            JSONArray componentInstancesArray = jsonObject.getJSONArray("componentInstances");
-            components.clear();
-
-            for (int i = 0; i < componentInstancesArray.length(); i++) {
-                JSONObject componentInstanceObject = componentInstancesArray.getJSONObject(i);
-                String name = componentInstanceObject.getString("name");
-                Path jarFilePath = Path.of(componentInstanceObject.getString("jarFilePath"));
-
-                deployComponent(jarFilePath, name);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     public boolean hasComponent(String componentId) {
         return components.containsKey(componentId);
