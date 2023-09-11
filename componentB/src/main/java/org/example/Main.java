@@ -1,28 +1,33 @@
 package org.example;
 
-import custom.annotation.component.Component;
-import logger.ConsoleLogger;
+import lzu.utils.Component;
 import logger.Inject;
 import logger.Logger;
-import picocli.CommandLine;
+import lzu.utils.MessageQueue;
 
 public class Main {
-
-    static Bar bar = new Bar();
-    static Foo foo = new Foo();
-
     @Inject
     static Logger logger;
+
+    @Inject
+    MessageQueue messageQueue;
 
     @Component(Component.Lifecycle.START)
     public void start() {
         logger.sendLog("ComponentB: started.");
-        bar.sayHello();
-    }
 
+        new Thread(() -> {
+            while (true) {
+                String receivedMessage = messageQueue.receiveMessage();
+                if (receivedMessage != null) {
+                    String processedMessage = receivedMessage.toUpperCase();
+                    logger.sendLog("ComponentB received and processed the message: " + processedMessage);
+                }
+            }
+        }).start();
+    }
     @Component(Component.Lifecycle.STOP)
     public void stop() {
-        foo.sayBye();
         logger.sendLog("ComponentB: stopped.");
     }
     public static void main(String[] args) {
