@@ -12,13 +12,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import custom.annotation.component.Component;
+import lzu.utils.Component;
 import logger.Inject;
 import logger.Logger;
 import logger.LoggerFactory;
 import lzu.model.ComponentState;
 import lzu.utils.ComponentThread;
 import lzu.model.ComponentInstance;
+import lzu.utils.MessageQueue;
 import lzu.utils.UniqueIdGenerator;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -31,6 +32,7 @@ public class ComponentLoader {
     private Object stopMethodInstance;
     private Map<String, ComponentInstance> components;
     private String prefix;
+    private final MessageQueue messageBus = MessageQueue.getInstance();
 
     public ComponentLoader() {
 
@@ -73,6 +75,7 @@ public class ComponentLoader {
 
             if (startingClass != null) {
                 injectLogger(startMethodInstance);
+                injectMessageBus(startMethodInstance);
                 ComponentInstance componentInstance = new ComponentInstance(uniqueId, name, startingClass, startMethod, stopMethod, startMethodInstance, stopMethodInstance, jarFilePath);
                 components.put(uniqueId, componentInstance);
             } else {
@@ -117,6 +120,20 @@ public class ComponentLoader {
                 try {
                     Logger logger = LoggerFactory.createLogger();
                     field.set(componentInstance, logger);
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private void injectMessageBus(Object componentInstance) {
+        Field[] fields = componentInstance.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Inject.class) && field.getType().equals(MessageQueue.class)) {
+                field.setAccessible(true);
+                try {
+                    field.set(componentInstance, messageBus);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
