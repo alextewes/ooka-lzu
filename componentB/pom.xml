@@ -42,11 +42,6 @@
     <dependencies>
         <dependency>
             <groupId>org.example</groupId>
-            <artifactId>component-annotation</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>org.example</groupId>
             <artifactId>ooka-lzu</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
