@@ -47,23 +47,8 @@ public class StateLoaderUtils {
         for (Map<String, String> componentState : componentStates) {
             String name = componentState.get("name");
             Path jarFilePath = Path.of(componentState.get("jarFilePath"));
-            String state = componentState.get("state");
-            String componentId = componentState.get("ID");
 
-            List<Class<?>> loadedClasses = loader.deployComponent(jarFilePath, name);
-
-            if ("RUNNING".equals(state) && !loadedClasses.isEmpty()) {
-                loader.startComponentById(componentId);
-            } else if ("STOPPED".equals(state) && !loadedClasses.isEmpty()) {
-                loader.startComponentById(componentId);
-                // timeout to make sure the component is started
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                loader.stopComponentById(componentId);
-            }
+            loader.deployComponent(jarFilePath, name);
         }
     }
 
