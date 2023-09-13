@@ -1,5 +1,6 @@
 package lzu.service;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -32,7 +33,7 @@ public class ComponentLoader {
     private Object stopMethodInstance;
     private Map<String, ComponentInstance> components;
     private String prefix;
-    private final MessageQueue messageBus = MessageQueue.getInstance();
+    private final MessageQueue messageQueue = MessageQueue.getInstance();
 
     public ComponentLoader() {
 
@@ -47,10 +48,13 @@ public class ComponentLoader {
     }
 
     public void stopRuntime() {
-        stopAllComponents();
+        for (String componentID : components.keySet()) {
+            stopComponentById(componentID);
+            removeComponentById(componentID);
+        }
     }
 
-    public List<Class<?>> deployComponent(Path jarFilePath, String name) {
+    public List<Class<?>> deployComponent(Path jarFilePath, String name) throws IOException, ClassNotFoundException {
         int id = UniqueIdGenerator.generateNewId();
         String uniqueId = prefix + "-" + id;
         List<Class<?>> loadedClasses = new ArrayList<>();
@@ -75,7 +79,7 @@ public class ComponentLoader {
 
             if (startingClass != null) {
                 injectLogger(startMethodInstance);
-                injectMessageBus(startMethodInstance);
+                injectMessageQueue(startMethodInstance);
                 ComponentInstance componentInstance = new ComponentInstance(uniqueId, name, startingClass, startMethod, stopMethod, startMethodInstance, stopMethodInstance, jarFilePath);
                 components.put(uniqueId, componentInstance);
             } else {
@@ -83,6 +87,7 @@ public class ComponentLoader {
             }
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
+            throw e;
         }
         return loadedClasses;
     }
@@ -127,13 +132,13 @@ public class ComponentLoader {
         }
     }
 
-    private void injectMessageBus(Object componentInstance) {
+    private void injectMessageQueue(Object componentInstance) {
         Field[] fields = componentInstance.getClass().getDeclaredFields();
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class) && field.getType().equals(MessageQueue.class)) {
                 field.setAccessible(true);
                 try {
-                    field.set(componentInstance, messageBus);
+                    field.set(componentInstance, messageQueue);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
@@ -144,12 +149,6 @@ public class ComponentLoader {
     public void startAllComponents() {
         for (String componentID : components.keySet()) {
             startComponentById(componentID);
-        }
-    }
-
-    public void stopAllComponents() {
-        for (String componentID : components.keySet()) {
-            stopComponentById(componentID);
         }
     }
 

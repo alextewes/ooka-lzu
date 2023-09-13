@@ -3,6 +3,8 @@ package lzu.utils;
 import lzu.service.ComponentLoader;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,7 +45,7 @@ public class StateLoaderUtils {
         return componentStates;
     }
 
-    public static void loadStateForLoader(ComponentLoader loader, List<Map<String, String>> componentStates) {
+    public static void loadStateForLoader(ComponentLoader loader, List<Map<String, String>> componentStates) throws IOException, ClassNotFoundException {
         for (Map<String, String> componentState : componentStates) {
             String name = componentState.get("name");
             Path jarFilePath = Path.of(componentState.get("jarFilePath"));
@@ -53,4 +55,53 @@ public class StateLoaderUtils {
     }
 
 
+    public static ResponseEntity<String> saveState(LoadBalancer loadBalancer) {
+        try {
+            JSONArray allComponentInstancesArray = new JSONArray();
+
+            for (ComponentLoader loader : loadBalancer.getAllLoaders()) {
+                JSONArray loaderComponentInstancesArray = loader.saveState();
+                for (int i = 0; i < loaderComponentInstancesArray.length(); i++) {
+                    allComponentInstancesArray.put(loaderComponentInstancesArray.getJSONObject(i));
+                }
+            }
+
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("componentInstances", allComponentInstancesArray);
+
+            String jsonState = jsonObject.toString();
+
+            String filePath = "state.json";
+            Path file = Paths.get(filePath);
+            Files.write(file, jsonState.getBytes());
+
+            return new ResponseEntity<>("States saved successfully", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Error saving state: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public static ResponseEntity<String> loadState(LoadBalancer loadBalancer) {
+        try {
+            List<Map<String, String>> componentStates = loadComponentStates();
+            List<ComponentLoader> loaders = loadBalancer.getAllLoaders();
+            int numLoaders = loaders.size();
+
+            int totalComponents = componentStates.size();
+            int componentsPerLoader = totalComponents / numLoaders;
+            int extraComponents = totalComponents % numLoaders;
+
+            int startIndex = 0;
+            for (int i = 0; i < numLoaders; i++) {
+                int endIndex = startIndex + componentsPerLoader + (i < extraComponents ? 1 : 0);
+                List<Map<String, String>> loaderComponentStates = componentStates.subList(startIndex, endIndex);
+                loadStateForLoader(loaders.get(i), loaderComponentStates);
+                startIndex = endIndex;
+            }
+
+            return new ResponseEntity<>("State loaded successfully", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Error loading state: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
