@@ -17,8 +17,7 @@ import java.util.Map;
 
 public class StateLoaderUtils {
 
-    public static List<Map<String, String>> loadComponentStates() throws IOException {
-        String filePath = "state.json";
+    public static List<Map<String, String>> loadComponentStates(String filePath) throws IOException {
         Path file = Paths.get(filePath);
 
         String jsonState = Files.readString(file);
@@ -55,7 +54,7 @@ public class StateLoaderUtils {
     }
 
 
-    public static ResponseEntity<String> saveState(LoadBalancer loadBalancer) {
+    public static ResponseEntity<String> saveState(LoadBalancer loadBalancer, String filePath) {
         try {
             JSONArray allComponentInstancesArray = new JSONArray();
 
@@ -71,7 +70,6 @@ public class StateLoaderUtils {
 
             String jsonState = jsonObject.toString();
 
-            String filePath = "state.json";
             Path file = Paths.get(filePath);
             Files.write(file, jsonState.getBytes());
 
@@ -81,9 +79,9 @@ public class StateLoaderUtils {
         }
     }
 
-    public static ResponseEntity<String> loadState(LoadBalancer loadBalancer) {
+    public static ResponseEntity<String> loadState(LoadBalancer loadBalancer, String filePath) {
         try {
-            List<Map<String, String>> componentStates = loadComponentStates();
+            List<Map<String, String>> componentStates = loadComponentStates(filePath);
             List<ComponentLoader> loaders = loadBalancer.getAllLoaders();
             int numLoaders = loaders.size();
 

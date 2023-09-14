@@ -21,10 +21,6 @@ public class ComponentController {
     @Autowired
     private LoadBalancer loadBalancer;
 
-    private ComponentLoader getLoader() {
-        return loadBalancer.getNextLoader();
-    }
-
     private ComponentLoader findLoaderByComponentId(String componentId) {
         for (ComponentLoader loader : loadBalancer.getAllLoaders()) {
             if (loader.hasComponent(componentId)) {
@@ -65,7 +61,8 @@ public class ComponentController {
         String componentJarPath = payload.get("componentJarPath");
         String componentName = payload.get("componentName");
         try {
-            getLoader().deployComponent(Path.of(componentJarPath), componentName);
+            loadBalancer.getNextLoader().deployComponent(Path.of(componentJarPath), componentName);
+            StateLoaderUtils.saveState(loadBalancer, "state.json");
             return new ResponseEntity<>("Component deployed with name: " + componentName, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>("Error deploying component: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -114,8 +111,12 @@ public class ComponentController {
     }
 
     @PostMapping("/save-state")
-    public ResponseEntity<String> saveState() {
-        return StateLoaderUtils.saveState(loadBalancer);
+    public ResponseEntity<String> saveState(@RequestBody Map<String, String> payload) {
+        String filename = payload.get("filename");
+        if (filename == null || filename.isEmpty()) {
+            return ResponseEntity.badRequest().body("Filename is required");
+        }
+        return StateLoaderUtils.saveState(loadBalancer, filename);
     }
 
 
@@ -140,8 +141,12 @@ public class ComponentController {
     }
 
     @PostMapping("/load-state")
-    public ResponseEntity<String> loadState() {
-        return StateLoaderUtils.loadState(loadBalancer);
+    public ResponseEntity<String> loadState(@RequestBody Map<String, String> payload) {
+        String filename = payload.get("filename");
+        if (filename == null || filename.isEmpty()) {
+            return ResponseEntity.badRequest().body("Filename is required");
+        }
+        return StateLoaderUtils.loadState(loadBalancer, filename);
     }
 
     @GetMapping("/status")
