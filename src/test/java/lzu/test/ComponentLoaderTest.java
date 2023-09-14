@@ -30,6 +30,14 @@ class ComponentLoaderTest {
     }
 
     @Test
+    void testClassIsolation() throws IOException, ClassNotFoundException {
+        Path mockJarPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
+        Class<?> loadedClass1 = componentLoader.deployComponent(mockJarPath, "mock-component-1").get(0);
+        Class<?> loadedClass2 = componentLoader.deployComponent(mockJarPath, "mock-component-2").get(0);
+        assertFalse(loadedClass1.isInstance(loadedClass2), "Instances of classes should be different.");
+    }
+
+    @Test
     void startAndStopComponentById() throws IOException, ClassNotFoundException {
         Path mockJarPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
         List<Class<?>> loadedClasses = componentLoader.deployComponent(mockJarPath, "mock-component");
