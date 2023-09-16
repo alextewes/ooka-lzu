@@ -1,15 +1,13 @@
 package lzu.api;
 
 import lzu.service.ComponentLoader;
+import lzu.utils.ComponentLoadBalancer;
 import lzu.utils.StateLoaderUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import lzu.utils.LoadBalancer;
-
+import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,25 +16,12 @@ import java.util.Map;
 @RequestMapping("/api/components")
 public class ComponentController {
 
-    @Autowired
-    private LoadBalancer loadBalancer;
-
-    private ComponentLoader findLoaderByComponentId(String componentId) {
-        for (ComponentLoader loader : loadBalancer.getAllLoaders()) {
-            if (loader.hasComponent(componentId)) {
-                return loader;
-            }
-        }
-        return null;
-    }
+    private ComponentLoadBalancer loadBalancer = new ComponentLoadBalancer(new ComponentLoader());
 
     @PostMapping("/start-runtime")
     public ResponseEntity<String> startRuntime() {
         try {
-            List<ComponentLoader> loaders = loadBalancer.getAllLoaders();
-            for (ComponentLoader loader : loaders) {
-                loader.startRuntime();
-            }
+            loadBalancer.getComponentLoader().startRuntime();
             return new ResponseEntity<>("Runtime started successfully", HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>("Error starting runtime: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -46,10 +31,7 @@ public class ComponentController {
     @PostMapping("/stop-runtime")
     public ResponseEntity<String> stopRuntime() {
         try {
-            List<ComponentLoader> loaders = loadBalancer.getAllLoaders();
-            for (ComponentLoader loader : loaders) {
-                loader.stopRuntime();
-            }
+            loadBalancer.getComponentLoader().stopRuntime();
             return new ResponseEntity<>("Runtime stopped successfully", HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>("Error stopping runtime: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -60,10 +42,10 @@ public class ComponentController {
     public ResponseEntity<String> deployComponent(@RequestBody Map<String, String> payload) {
         String componentJarPath = payload.get("componentJarPath");
         String componentName = payload.get("componentName");
+        int instanceCount = Integer.parseInt(payload.get("instanceCount"));
         try {
-            loadBalancer.getNextLoader().deployComponent(Path.of(componentJarPath), componentName);
-            StateLoaderUtils.saveState(loadBalancer, "state.json");
-            return new ResponseEntity<>("Component deployed with name: " + componentName, HttpStatus.OK);
+            loadBalancer.deployAndBalanceComponent(Path.of(componentJarPath), componentName, instanceCount);
+            return new ResponseEntity<>(instanceCount + "Component(s) deployed with name: " + componentName, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>("Error deploying component: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -71,42 +53,33 @@ public class ComponentController {
 
     @PostMapping("/start")
     public ResponseEntity<Map<String, String>> startComponent(@RequestBody Map<String, String> payload) {
-        String componentId = payload.get("componentId");
+        String componentName = payload.get("componentName");
         Map<String, String> response = new HashMap<>();
-        ComponentLoader loader = findLoaderByComponentId(componentId);
-        if (loader != null) {
-            try {
-                loader.startComponentById(componentId);
-                response.put("message", "Component started with ID: " + componentId);
-                return new ResponseEntity<>(response, HttpStatus.OK);
-            } catch (Exception e) {
-                response.put("error", "Error starting component: " + e.getMessage());
-                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        } else {
-            response.put("error", "Component not found: " + componentId);
-            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        String id = loadBalancer.getNextComponentInstance(componentName);
+
+        try {
+            loadBalancer.getComponentLoader().startComponentById(id);
+            response.put("message", "Component started with ID: " + id);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
 
     @PostMapping("/stop")
     public ResponseEntity<Map<String, String>> stopComponent(@RequestBody Map<String, String> payload) {
         String componentId = payload.get("componentId");
         Map<String, String> response = new HashMap<>();
-        ComponentLoader loader = findLoaderByComponentId(componentId);
-        if (loader != null) {
-            try {
-                loader.stopComponentById(componentId);
-                response.put("message", "Component stopped with ID: " + componentId);
-                return new ResponseEntity<>(response, HttpStatus.OK);
-            } catch (Exception e) {
-                response.put("error", "Error stopping component: " + e.getMessage());
-                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        } else {
-            response.put("error", "Component not found: " + componentId);
-            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        ComponentLoader loader = loadBalancer.getComponentLoader();
+
+        try {
+            loader.stopComponentById(componentId);
+            response.put("message", "Component stopped with ID: " + componentId);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -116,29 +89,36 @@ public class ComponentController {
         if (filename == null || filename.isEmpty()) {
             return ResponseEntity.badRequest().body("Filename is required");
         }
-        return StateLoaderUtils.saveState(loadBalancer, filename);
-    }
+        try {
+            loadBalancer.getComponentLoader().saveState(filename);
+            return ResponseEntity.ok("State saved successfully");
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body("Error saving state: " + e.getMessage());
+        }
 
+    }
 
     @DeleteMapping("/remove")
     public ResponseEntity<Map<String, String>> removeComponent(@RequestBody Map<String, String> payload) {
         String componentId = payload.get("componentId");
         Map<String, String> response = new HashMap<>();
-        ComponentLoader loader = findLoaderByComponentId(componentId);
-        if (loader != null) {
-            try {
-                loader.removeComponentById(componentId);
+        ComponentLoader loader = loadBalancer.getComponentLoader();
+
+        try {
+            boolean wasRemoved = loader.removeComponentById(componentId);
+            if (wasRemoved) {
                 response.put("message", "Component removed with ID: " + componentId);
                 return new ResponseEntity<>(response, HttpStatus.OK);
-            } catch (Exception e) {
-                response.put("error", "Error removing component: " + e.getMessage());
-                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            } else {
+                response.put("error", "Component not found: " + componentId);
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
             }
-        } else {
-            response.put("error", "Component not found: " + componentId);
-            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            response.put("error", "Error removing component: " + e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
 
     @PostMapping("/load-state")
     public ResponseEntity<String> loadState(@RequestBody Map<String, String> payload) {
@@ -146,21 +126,26 @@ public class ComponentController {
         if (filename == null || filename.isEmpty()) {
             return ResponseEntity.badRequest().body("Filename is required");
         }
-        return StateLoaderUtils.loadState(loadBalancer, filename);
+        try {
+            List<Map<String, String>> componentStates = StateLoaderUtils.loadComponentStates(filename);
+            ComponentLoader loader = loadBalancer.getComponentLoader();
+            StateLoaderUtils.loadStateForLoader(loader, componentStates);
+            loadBalancer.reloadQueues();
+            return ResponseEntity.ok("State loaded successfully");
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body("Error loading state: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
-
     @GetMapping("/status")
     public ResponseEntity<List<Map<String, Object>>> getStatuses() {
-        List<Map<String, Object>> allStatuses = new ArrayList<>();
         try {
-            for (ComponentLoader loader : loadBalancer.getAllLoaders()) {
-                allStatuses.addAll(loader.getAllComponentStatuses());
-            }
-            return new ResponseEntity<>(allStatuses, HttpStatus.OK);
+
+            return new ResponseEntity<>(loadBalancer.getComponentLoader().getAllComponentStatuses(), HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
 }
-
-
