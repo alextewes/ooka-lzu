@@ -10,7 +10,7 @@ public class Main {
     static Logger logger;
 
     @Inject
-    MessageQueue messageQueue;
+    static MessageQueue messageQueue;
 
     @Component(Component.Lifecycle.START)
     public void start() {
@@ -20,12 +20,25 @@ public class Main {
             while (true) {
                 String receivedMessage = messageQueue.receiveMessage();
                 if (receivedMessage != null) {
-                    String processedMessage = receivedMessage.toUpperCase();
-                    logger.sendLog("ComponentB received and processed the message: " + processedMessage);
+                    String cleanMessage = receivedMessage.replaceAll("\\[|\\]", "");
+                    String[] numberStrings = cleanMessage.split(", ");
+                    int sum = 0;
+
+                    for (String numStr : numberStrings) {
+                        try {
+                            sum += Integer.parseInt(numStr);
+                        } catch (NumberFormatException e) {
+                            logger.sendLog("Invalid number format: " + numStr);
+                        }
+                    }
+
+                    logger.sendLog("ComponentB: Sum of received primes: " + sum);
                 }
             }
         }).start();
     }
+
+
     @Component(Component.Lifecycle.STOP)
     public void stop() {
         logger.sendLog("ComponentB: stopped.");
