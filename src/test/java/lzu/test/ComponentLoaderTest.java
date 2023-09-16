@@ -19,7 +19,7 @@ class ComponentLoaderTest {
 
     @BeforeEach
     void setUp() {
-        componentLoader = new ComponentLoader("test-prefix");
+        componentLoader = new ComponentLoader();
     }
 
     @Test
@@ -38,23 +38,22 @@ class ComponentLoaderTest {
     }
 
     @Test
-    void startAndStopComponentById() throws IOException, ClassNotFoundException {
+    void startAndStopComponentById() throws Exception {
         Path mockJarPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
         List<Class<?>> loadedClasses = componentLoader.deployComponent(mockJarPath, "mock-component");
         assertFalse(loadedClasses.isEmpty(), "Loaded classes list should not be empty");
-
-        componentLoader.startComponentById("test-prefix-1");
-        componentLoader.stopComponentById("test-prefix-1");
+        componentLoader.startComponentById("1");
+        componentLoader.stopComponentById("1");
     }
 
     @Test
-    void removeComponentById() throws IOException, ClassNotFoundException {
+    void removeComponentById() throws Exception {
         Path mockJarPath = Paths.get("C:\\Users\\Alex\\IdeaProjects\\H-BRS\\ooka-lzu\\componentA\\target\\componentA-1.0-SNAPSHOT.jar");
         List<Class<?>> loadedClasses = componentLoader.deployComponent(mockJarPath, "mock-component");
         assertFalse(loadedClasses.isEmpty(), "Loaded classes list should not be empty");
 
-        componentLoader.removeComponentById("test-prefix-1");
-        assertFalse(componentLoader.hasComponent("test-prefix-1"), "Component should be removed");
+        componentLoader.removeComponentById("1");
+        assertFalse(componentLoader.getComponents().containsKey("1"), "Component should be removed");
     }
 
     @Test

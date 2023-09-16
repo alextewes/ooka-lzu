@@ -16,11 +16,10 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import lzu.utils.Component;
-import logger.Inject;
-import logger.Logger;
-import logger.LoggerFactory;
+import lzu.utils.logger.Inject;
+import lzu.utils.logger.Logger;
+import lzu.utils.logger.LoggerFactory;
 import lzu.model.ComponentState;
-import lzu.utils.ComponentThread;
 import lzu.model.ComponentInstance;
 import lzu.utils.MessageQueue;
 import org.json.JSONArray;
@@ -35,7 +34,7 @@ public class ComponentLoader {
     private Map<String, ComponentInstance> components = new HashMap<>();
     private final MessageQueue messageQueue;
     private Map<String, String> componentNameToLastID = new ConcurrentHashMap<>();
-    private static final AtomicInteger ID_COUNTER = new AtomicInteger(0);
+    private final AtomicInteger ID_COUNTER = new AtomicInteger(0);
 
     public ComponentLoader() {
         this.messageQueue = MessageQueue.getInstance();
@@ -161,7 +160,7 @@ public class ComponentLoader {
         }
         ComponentThread newThread = new ComponentThread(componentInstance, startMethod, stopMethod, startMethodInstance, stopMethodInstance);
         componentInstance.setComponentThread(newThread);
-        newThread.start();
+        newThread.run();
     }
     public void stopComponentById(String componentID) throws Exception {
         ComponentInstance componentInstance = components.get(componentID);
@@ -174,6 +173,7 @@ public class ComponentLoader {
         }
         try {
             stopMethod.invoke(stopMethodInstance);
+            componentInstance.getComponentThread().interrupt();
             componentInstance.setState(ComponentState.STOPPED);
         } catch (IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();

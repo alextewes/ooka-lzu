@@ -1,7 +1,7 @@
 package lzu.api;
 
 import lzu.service.ComponentLoader;
-import lzu.utils.ComponentLoadBalancer;
+import lzu.service.ComponentLoadBalancer;
 import lzu.utils.StateLoaderUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;

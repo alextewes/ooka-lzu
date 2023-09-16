@@ -1,8 +1,8 @@
 package org.example;
 
 import lzu.utils.Component;
-import logger.*;
-import logger.Logger;
+import lzu.utils.logger.Inject;
+import lzu.utils.logger.Logger;
 import lzu.utils.MessageQueue;
 
 import java.util.ArrayList;

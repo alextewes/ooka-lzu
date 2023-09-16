@@ -1,6 +1,6 @@
 package lzu.model;
 
-import lzu.utils.ComponentThread;
+import lzu.service.ComponentThread;
 
 import java.lang.reflect.Method;
 import java.nio.file.Path;
@@ -26,16 +26,8 @@ public class ComponentInstance {
         return ID;
     }
 
-    public void setID(String ID) {
-        this.ID = ID;
-    }
-
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public ComponentState getState() {
@@ -50,24 +42,16 @@ public class ComponentInstance {
         return startClass;
     }
 
-    public void setStartClass(Class<?> startClass) {
-        this.startClass = startClass;
+    public void setComponentThread(ComponentThread componentThread) {
+        this.componentThread = componentThread;
     }
 
     public ComponentThread getComponentThread() {
         return componentThread;
     }
 
-    public void setComponentThread(ComponentThread componentThread) {
-        this.componentThread = componentThread;
-    }
-
     public Path getJarFilePath() {
         return jarFilePath;
-    }
-
-    public void setJarFilePath(Path jarFilePath) {
-        this.jarFilePath = jarFilePath;
     }
 }
 

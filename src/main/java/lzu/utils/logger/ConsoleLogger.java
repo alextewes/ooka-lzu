@@ -1,4 +1,4 @@
-package logger;
+package lzu.utils.logger;
 
 import java.time.LocalDateTime;
 
