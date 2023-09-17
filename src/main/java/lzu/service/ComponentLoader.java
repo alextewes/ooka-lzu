@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import lzu.model.ComponentThread;
 import lzu.utils.Component;
 import lzu.utils.logger.Inject;
 import lzu.utils.logger.Logger;

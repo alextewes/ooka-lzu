@@ -1,7 +1,5 @@
 package lzu.model;
 
-import lzu.service.ComponentThread;
-
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 

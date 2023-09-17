@@ -1,4 +1,4 @@
-package lzu.service;
+package lzu.model;
 
 import lzu.model.ComponentInstance;
 import lzu.model.ComponentState;
