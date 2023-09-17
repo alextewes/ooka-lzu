@@ -8,7 +8,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import lzu.model.ComponentInstance;
-import lzu.service.ComponentLoader;
 
 public class ComponentLoadBalancer {
 

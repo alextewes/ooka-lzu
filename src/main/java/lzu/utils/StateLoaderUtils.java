@@ -1,6 +1,5 @@
 package lzu.utils;
 
-import lzu.model.ComponentInstance;
 import lzu.service.ComponentLoader;
 import org.json.JSONArray;
 import org.json.JSONObject;
