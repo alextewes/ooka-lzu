@@ -40,10 +40,6 @@ public class ComponentInstance {
         return startClass;
     }
 
-    public void setComponentThread(ComponentThread componentThread) {
-        this.componentThread = componentThread;
-    }
-
     public ComponentThread getComponentThread() {
         return componentThread;
     }

@@ -15,11 +15,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import lzu.model.ComponentThread;
 import lzu.utils.Component;
+import lzu.utils.logger.ConsoleLogger;
 import lzu.utils.logger.Inject;
-import lzu.utils.logger.Logger;
-import lzu.utils.logger.LoggerFactory;
 import lzu.model.ComponentState;
 import lzu.model.ComponentInstance;
 import lzu.utils.MessageQueue;
@@ -28,10 +26,6 @@ import org.json.JSONObject;
 
 public class ComponentLoader {
 
-    private Method startMethod;
-    private Method stopMethod;
-    private Object startMethodInstance;
-    private Object stopMethodInstance;
     private Map<String, ComponentInstance> components = new HashMap<>();
     private final MessageQueue messageQueue;
     private Map<String, String> componentNameToLastID = new ConcurrentHashMap<>();
@@ -56,36 +50,27 @@ public class ComponentLoader {
         }
     }
 
-
-
     public List<Class<?>> deployComponent(Path jarFilePath, String name) throws IOException, ClassNotFoundException {
         String id = "" + ID_COUNTER.incrementAndGet();
         List<Class<?>> loadedClasses = new ArrayList<>();
         try (URLClassLoader classLoader = new URLClassLoader(new URL[]{jarFilePath.toUri().toURL()})) {
             JarFile jarFile = new JarFile(jarFilePath.toFile());
             Enumeration<JarEntry> entries = jarFile.entries();
-            Class<?> startingClass = null;
             while (entries.hasMoreElements()) {
                 JarEntry entry = entries.nextElement();
                 if (entry.getName().endsWith(".class")) {
                     String className = entry.getName().replace('/', '.').replace(".class", "");
                     Class<?> clazz = classLoader.loadClass(className);
                     loadedClasses.add(clazz);
-                    findAnnotatedMethods(clazz); // Sucht nach den Methoden mit den Annotationen @Component
-                    if (startMethod != null && stopMethod != null) {
-                        startingClass = clazz;
+
+                    ComponentInstance componentInstance = findAnnotatedMethods(clazz, id, name, jarFilePath);
+                    if (componentInstance != null) {
+                        components.put(id, componentInstance);
+                        componentNameToLastID.put(name, id);
+                        saveState("state.json");
                         break;
-                    } }}
-            if (startingClass != null) {
-                injectLogger(startMethodInstance);
-                injectMessageQueue(startMethodInstance);
-                ComponentInstance componentInstance = new ComponentInstance(id, name, startingClass, startMethod,
-                        stopMethod, startMethodInstance, stopMethodInstance, jarFilePath);
-                components.put(id, componentInstance);
-                componentNameToLastID.put(name, id);
-                saveState("state.json");
-            } else {
-                System.out.println("Starting class not found in the JAR file.");
+                    }
+                }
             }
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
@@ -94,12 +79,13 @@ public class ComponentLoader {
         return loadedClasses;
     }
 
-    private void findAnnotatedMethods(Class<?> clazz) {
+    private ComponentInstance findAnnotatedMethods(Class<?> clazz, String id, String name, Path jarFilePath) {
+        Method startMethod = null;
+        Method stopMethod = null;
+        Object startMethodInstance = null;
+        Object stopMethodInstance = null;
+
         try {
-            startMethod = null;
-            stopMethod = null;
-            startMethodInstance = null;
-            stopMethodInstance = null;
             for (Method method : clazz.getDeclaredMethods()) {
                 if (method.isAnnotationPresent(Component.class)) {
                     Component componentAnnotation = method.getAnnotation(Component.class);
@@ -112,34 +98,25 @@ public class ComponentLoader {
                     }
                 }
             }
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
-                 NoSuchMethodException e) {
+
+            if (startMethod != null && stopMethod != null) {
+                return new ComponentInstance(
+                        id, name, clazz, startMethod, stopMethod, startMethodInstance, stopMethodInstance, jarFilePath
+                );
+            }
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             e.printStackTrace();
         }
+        return null;
     }
 
-    private void injectLogger(Object componentInstance) {
-        Field[] fields = componentInstance.getClass().getDeclaredFields();
+    private void injectDependency(ComponentInstance componentInstance, Object dependency) {
+        Field[] fields = componentInstance.getStartClass().getDeclaredFields();
         for (Field field : fields) {
-            if (field.isAnnotationPresent(Inject.class) && field.getType().equals(Logger.class)) {
+            if (field.isAnnotationPresent(Inject.class) && field.getType().equals(dependency.getClass())) {
                 field.setAccessible(true);
                 try {
-                    Logger logger = LoggerFactory.createLogger();
-                    field.set(componentInstance, logger);
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    private void injectMessageQueue(Object componentInstance) {
-        Field[] fields = componentInstance.getClass().getDeclaredFields();
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Inject.class) && field.getType().equals(MessageQueue.class)) {
-                field.setAccessible(true);
-                try {
-                    field.set(componentInstance, messageQueue);
+                    field.set(componentInstance, dependency);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
@@ -152,33 +129,16 @@ public class ComponentLoader {
         if (componentInstance == null) {
             throw new Exception("Component not found: " + componentID);
         }
-        if (componentInstance.getState() == ComponentState.RUNNING) {
-            throw new Exception("Component is already running.");
-        }
-        findAnnotatedMethods(componentInstance.getStartClass());
-        if (startMethod == null || startMethodInstance == null) {
-            throw new Exception("Start method not found or not properly initialized.");
-        }
-        ComponentThread newThread = new ComponentThread(componentInstance, startMethod, stopMethod, startMethodInstance, stopMethodInstance);
-        componentInstance.setComponentThread(newThread);
-        newThread.run();
+        injectDependency(componentInstance, new ConsoleLogger());
+        injectDependency(componentInstance, messageQueue);
+        componentInstance.getComponentThread().run();
     }
     public void stopComponentById(String componentID) throws Exception {
         ComponentInstance componentInstance = components.get(componentID);
         if (componentInstance == null) {
             throw new Exception("Component not found: " + componentID);
         }
-        findAnnotatedMethods(componentInstance.getStartClass());
-        if (stopMethod == null || stopMethodInstance == null || componentInstance.getState() == ComponentState.STOPPED || componentInstance.getState() == ComponentState.INITIALIZED) {
-            throw new Exception("Stop method not found or not properly initialized.");
-        }
-        try {
-            stopMethod.invoke(stopMethodInstance);
-            componentInstance.getComponentThread().interrupt();
-            componentInstance.setState(ComponentState.STOPPED);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
-        }
+        componentInstance.getComponentThread().stopComponent();
     }
 
     public boolean removeComponentById(String componentID) throws Exception {

@@ -27,4 +27,13 @@ public class ComponentThread extends Thread {
             e.printStackTrace();
         }
     }
+
+    public void stopComponent() {
+        try {
+            stopMethod.invoke(stopMethodInstance);
+            componentInstance.setState(ComponentState.STOPPED);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+    }
 }

@@ -1,8 +1,8 @@
 package org.example;
 
 import lzu.utils.Component;
+import lzu.utils.logger.ConsoleLogger;
 import lzu.utils.logger.Inject;
-import lzu.utils.logger.Logger;
 import lzu.utils.MessageQueue;
 
 import java.util.ArrayList;
@@ -11,7 +11,7 @@ import java.util.List;
 public class Main {
 
     @Inject
-    static Logger logger;
+    static ConsoleLogger logger;
 
     @Inject
     static MessageQueue messageQueue;
@@ -22,7 +22,7 @@ public class Main {
         List<Integer> primes = calculatePrimes(100);
         String message = primes.toString();
         messageQueue.sendMessage(message);
-        logger.sendLog("Component A sent Message: " + message);
+        logger.sendLog("ComponentA sent Message: " + message);
     }
 
     @Component(Component.Lifecycle.STOP)

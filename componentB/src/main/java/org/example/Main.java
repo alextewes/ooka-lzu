@@ -1,13 +1,13 @@
 package org.example;
 
 import lzu.utils.Component;
+import lzu.utils.logger.ConsoleLogger;
 import lzu.utils.logger.Inject;
-import lzu.utils.logger.Logger;
 import lzu.utils.MessageQueue;
 
 public class Main {
     @Inject
-    static Logger logger;
+    static ConsoleLogger logger;
 
     @Inject
     static MessageQueue messageQueue;
